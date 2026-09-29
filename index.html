@@ -984,8 +984,8 @@ async function refresh() {
   if (current().id === d.id) { busy(false); render(); }
 }
 
-/* ---------------- My teams (test copy) ----------------
-   A third tab. Loads every division on the list, finds the teams of one club ("Des Moines
+/* ---------------- My teams ----------------
+   The first tab. Loads every division on the list, finds the teams of one club ("Des Moines
    Eclipse (IA)" and "Des Moines Eclipse (IA)- 1" are both Des Moines Eclipse) and shows one
    schedule of their pool and bracket matches, by day and time. */
 const club = { busy: false, done: 0, total: 0, lastUpdated: null, failed: [] };
