@@ -65,7 +65,7 @@
   .filters select { font: 500 14px Barlow, sans-serif; padding: 7px 8px; border-radius: 8px; border: 0; background: #fff; color: var(--ink); max-width: 100%; }
   .filters select.set { outline: 2px solid var(--gold); outline-offset: -2px; font-weight: 700; }
   .filters .linkish { padding: 4px; font-size: 14px; }
-  /* My club: club dropdown, team checklist and the club's combined schedule */
+  /* My teams: club dropdown, team checklist and the combined schedule */
   .club-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-bottom: 16px; position: relative; }
   .club-controls select { font: 500 15px Barlow, sans-serif; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: var(--ink); max-width: 100%; }
   .teampick { position: static; }
@@ -199,9 +199,9 @@
   <div class="filterbar">
     <div class="filters" id="filters" aria-label="Filters"></div>
     <div class="stages" id="stages" role="group" aria-label="Tournament stage">
+      <button type="button" data-stage="club">My teams</button>
       <button type="button" data-stage="pools">Pool play</button>
       <button type="button" data-stage="brackets">Bracket play</button>
-      <button type="button" data-stage="club">My club</button>
     </div>
   </div>
   <div class="divs" id="divs" aria-label="Divisions"></div>
@@ -872,7 +872,8 @@ async function updateDivisionList() {
   discovery = null;
   if (setup) renderListStatus();
 }
-const currentStage = () => settings.stage || typeOf(divisions().find(d => d.id === settings.division) || divisions()[0] || {});
+// My teams is the default tab until another is picked
+const currentStage = () => settings.stage || "club";
 /* Filter tags come from the divisions sheet's optional Gender, Age, Level and
    Bracket columns, or are read from the division name ("Girls 18U D1 Gold Ball"). */
 function tagsOf(d) {
@@ -931,7 +932,7 @@ function filterOptions(stage, key) {
 }
 const visibleDivisions = stage => divisions().filter(d => typeOf(d) === stage && fits(d, filtersFor(stage)));
 const current = () => {
-  const stage = settings.stage || typeOf(divisions().find(d => d.id === settings.division) || divisions()[0] || {});
+  const stage = currentStage();
   const list = visibleDivisions(stage);
   return list.find(d => d.id === settings.division) || list[0] || { id: "__none", name: "No matching divisions", type: stage, url: "" };
 };
@@ -981,7 +982,7 @@ async function refresh() {
   if (current().id === d.id) { busy(false); render(); }
 }
 
-/* ---------------- My club (test copy) ----------------
+/* ---------------- My teams (test copy) ----------------
    A third tab. Loads every division on the list, finds the teams of one club ("Des Moines
    Eclipse (IA)" and "Des Moines Eclipse (IA)- 1" are both Des Moines Eclipse) and shows one
    schedule of their pool and bracket matches, by day and time. */
@@ -1054,8 +1055,8 @@ function clubIndex() {
 
 function renderClub() {
   $("bar").hidden = true;
-  $("title").textContent = "My club";
-  document.title = (SITE_LABEL ? SITE_LABEL + " · " : "") + "My club";
+  $("title").textContent = "My teams";
+  document.title = (SITE_LABEL ? SITE_LABEL + " · " : "") + "My teams";
   $("eventLine").textContent = eventName();
   busy(club.busy);
   const { teams, games } = clubIndex();
@@ -1063,10 +1064,10 @@ function renderClub() {
   const clubs = [...new Set(all.map(t => t.club))].sort((a, b) => a.localeCompare(b));
   const cur = clubs.includes(settings.club) ? settings.club : "";
   const mine = all.filter(t => t.club === cur).sort((a, b) => ageRank(a.age) - ageRank(b.age) || a.suffix.localeCompare(b.suffix, undefined, { numeric: true }));
-  // Until teams are picked for this club, all of its teams are shown
-  const picked = new Set(settings.clubTeamsFor === cur && settings.clubTeams ? settings.clubTeams.filter(id => mine.some(t => t.id === id)) : mine.map(t => t.id));
+  // No teams are picked until they're chosen in the list
+  const picked = new Set(settings.clubTeamsFor === cur && settings.clubTeams ? settings.clubTeams.filter(id => mine.some(t => t.id === id)) : []);
   const label = t => t.age + (t.suffix ? ` – ${t.suffix}` : "");
-  const summary = !mine.length ? "No teams" : picked.size === mine.length ? `All teams (${mine.length})` : picked.size <= 2 && picked.size ? mine.filter(t => picked.has(t.id)).map(label).join(", ") : picked.size ? `${picked.size} of ${mine.length} teams` : "No teams picked";
+  const summary = !mine.length ? "No teams" : !picked.size ? "Pick your teams" : picked.size === mine.length ? `All teams (${mine.length})` : picked.size <= 2 ? mine.filter(t => picked.has(t.id)).map(label).join(", ") : `${picked.size} of ${mine.length} teams`;
 
   let html = notices();
   html += `<div class="club-controls">
@@ -1080,7 +1081,7 @@ function renderClub() {
   if (club.failed.length) html += `<div class="msg err"><p>Couldn't load: ${esc(club.failed.join(", "))}.</p></div>`;
 
   if (!cur) {
-    html += clubs.length ? `<div class="msg"><h2>Pick your club</h2><p>See one schedule of all your club's pool and bracket matches, by day and time.</p></div>` : "";
+    html += clubs.length ? `<div class="msg"><h2>Pick your club</h2><p>Then pick your teams to see one schedule of all their pool and bracket matches, by day and time.</p></div>` : "";
   } else {
     const ours = new Set([...picked]);
     const list = games.filter(g => g.ids.some(id => ours.has(id)))
@@ -1107,8 +1108,9 @@ function renderClub() {
         <div class="side ${res("b")}${ourSide[1] ? " ours" : ""}"><span class="nm">${nm(g.b)}</span><span class="sets">${setCells(1)}</span></div>
         ${g.forfeit ? `<div class="foot" style="color:var(--muted);font-size:14px;margin-top:6px">${esc(g.forfeit)} didn't show (forfeit)</div>` : ""}</li>`;
     }).join("") + (lastDay !== null ? "</ol></section>" : "");
-    html += list.length ? items : `<div class="msg"><p>No matches yet for ${picked.size ? "these teams" : "this club; pick some teams"}.</p></div>`;
-    html += `<p class="note" style="padding:12px 0 0">Bracket matches show up here once teams are placed in the brackets. ★ marks your club's teams.</p>`;
+    html += !picked.size ? `<div class="msg"><h2>Pick your teams</h2><p>Tap “Pick your teams”, tick the ones you follow, then Done.</p></div>`
+      : list.length ? items : `<div class="msg"><p>No matches yet for these teams.</p></div>`;
+    if (picked.size) html += `<p class="note" style="padding:12px 0 0">Bracket matches show up here once teams are placed in the brackets. ★ marks your teams.</p>`;
   }
   $("main").innerHTML = html;
 
