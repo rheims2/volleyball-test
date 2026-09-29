@@ -78,6 +78,7 @@
   .teamlist input { accent-color: var(--navy); width: 17px; height: 17px; }
   .teamlist .row { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; gap: 6px; }
   .teamlist .ghost { padding: 5px 12px; font-size: 14px; }
+  .teamlist .refresh { padding: 5px 16px; font-size: 14px; margin-left: auto; }
   .dayhead { font: 700 24px "Barlow Condensed", sans-serif; margin: 18px 0 8px; }
   .gwhere { font-size: 14px; font-weight: 600; color: var(--navy-2); margin: -4px 0 6px; }
   .side.ours .nm { font-weight: 700; color: var(--ink); }
@@ -994,6 +995,10 @@ const DAYS = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7 };
 const DAY_NAMES = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 const dayKey = d => String(d || "").slice(0, 3).toLowerCase();
 
+// The team list also closes on a tap anywhere outside it, or on Escape
+document.addEventListener("click", e => { const p = $("teamPick"); if (p && p.open && !p.contains(e.target)) { teamPickOpen = false; p.open = false; } });
+document.addEventListener("keydown", e => { const p = $("teamPick"); if (e.key === "Escape" && p && p.open) { teamPickOpen = false; p.open = false; } });
+
 async function loadClub(force) {
   if (club.busy) return;
   const list = divisions();
@@ -1061,7 +1066,7 @@ function renderClub() {
   // Until teams are picked for this club, all of its teams are shown
   const picked = new Set(settings.clubTeamsFor === cur && settings.clubTeams ? settings.clubTeams.filter(id => mine.some(t => t.id === id)) : mine.map(t => t.id));
   const label = t => t.age + (t.suffix ? ` – ${t.suffix}` : "");
-  const summary = !mine.length ? "No teams" : picked.size === mine.length ? `All teams (${mine.length})` : picked.size ? mine.filter(t => picked.has(t.id)).map(label).join(", ") : "No teams picked";
+  const summary = !mine.length ? "No teams" : picked.size === mine.length ? `All teams (${mine.length})` : picked.size <= 2 && picked.size ? mine.filter(t => picked.has(t.id)).map(label).join(", ") : picked.size ? `${picked.size} of ${mine.length} teams` : "No teams picked";
 
   let html = notices();
   html += `<div class="club-controls">
@@ -1069,7 +1074,7 @@ function renderClub() {
       clubs.map(c => `<option ${c === cur ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
     ${cur ? `<details class="teampick" id="teamPick" ${teamPickOpen ? "open" : ""}><summary>${esc(summary)}</summary><div class="teamlist">${
       mine.map(t => `<label><input type="checkbox" data-team="${esc(t.id)}" ${picked.has(t.id) ? "checked" : ""}> ${esc(label(t))}</label>`).join("")}
-      <div class="row"><button type="button" class="ghost" id="teamsAll">All</button><button type="button" class="ghost" id="teamsNone">None</button></div></div></details>` : ""}
+      <div class="row"><button type="button" class="ghost" id="teamsAll">All</button><button type="button" class="ghost" id="teamsNone">None</button><button type="button" class="refresh" id="teamsDone">Done</button></div></div></details>` : ""}
   </div>`;
   if (club.busy) html += `<p class="note" id="clubProgress" style="padding:0">Loading divisions… ${club.done} of ${club.total}</p>`;
   if (club.failed.length) html += `<div class="msg err"><p>Couldn't load: ${esc(club.failed.join(", "))}.</p></div>`;
@@ -1116,6 +1121,7 @@ function renderClub() {
       setTeams([...pick.querySelectorAll("input[data-team]:checked")].map(x => x.dataset.team))));
     $("teamsAll").addEventListener("click", () => setTeams(mine.map(t => t.id)));
     $("teamsNone").addEventListener("click", () => setTeams([]));
+    $("teamsDone").addEventListener("click", () => { teamPickOpen = false; pick.open = false; });
   }
 }
 
