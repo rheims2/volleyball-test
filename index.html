@@ -272,6 +272,8 @@ const DIVISIONS = SAVED_LIST.divs;
 const KEY = VIEWER_CONFIG.storageKey || "nchvc-pool-viewer-v2";
 // config.js siteLabel (e.g. "TEST") marks a test copy in the page title and header
 const SITE_LABEL = VIEWER_CONFIG.siteLabel || "";
+// Club the My teams tab starts on until a visitor picks one
+const DEFAULT_CLUB = VIEWER_CONFIG.defaultClub || "";
 
 /* ---------------- parsing (works from labels, not fixed cell addresses) ---------------- */
 function parseCSV(text) {
@@ -1062,7 +1064,8 @@ function renderClub() {
   const { teams, games } = clubIndex();
   const all = [...teams.values()];
   const clubs = [...new Set(all.map(t => t.club))].sort((a, b) => a.localeCompare(b));
-  const cur = clubs.includes(settings.club) ? settings.club : "";
+  const wanted = settings.club === undefined ? clubs.find(c => c.toLowerCase() === DEFAULT_CLUB.toLowerCase()) : settings.club;
+  const cur = clubs.includes(wanted) ? wanted : "";
   const mine = all.filter(t => t.club === cur).sort((a, b) => ageRank(a.age) - ageRank(b.age) || a.suffix.localeCompare(b.suffix, undefined, { numeric: true }));
   // No teams are picked until they're chosen in the list
   const picked = new Set(settings.clubTeamsFor === cur && settings.clubTeams ? settings.clubTeams.filter(id => mine.some(t => t.id === id)) : []);
