@@ -1,5 +1,10 @@
 // Settings for the NCHVC results viewer.
 window.VIEWER_CONFIG = {
+  // THIS IS THE TEST COPY (rheims2/volleyball-test). These two settings are what make it
+  // different from the live viewer: its own saved-settings storage, and a TEST tag.
+  storageKey: "nchvc-test-viewer-v2",
+  siteLabel: "TEST",
+
   // Your divisions Google Sheet: renames, hides (Show = No) or adds divisions.
   divisionsSheet: "https://docs.google.com/spreadsheets/d/1RtIsoomRwrn-kGPWbcSdB3gV0ZGjVJMQCpMT71Y70DI/edit?usp=sharing",
 

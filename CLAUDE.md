@@ -1,3 +1,14 @@
+# TEST COPY of the NCHVC Results Viewer
+
+This repository, `rheims2/volleyball-test`, is a test copy of `rheims2/volleyball`, published at https://rheims2.github.io/volleyball-test/ (the live viewer is https://rheims2.github.io/volleyball/). Try changes here first; nothing here affects the live site.
+
+- `config.js` here sets `storageKey: "nchvc-test-viewer-v2"` (saved settings kept apart from the live site's, since both are under rheims2.github.io) and `siteLabel: "TEST"` (a red TEST tag in the header and page title). Keep them.
+- Everything else in `config.js` points at the same Google Sheets as the live site, including the divisions sheet. Editing that sheet changes both sites; use a copy of it here for experiments that change the sheet.
+- To move a change to the live site: copy `index.html` into `rheims2/volleyball` unchanged (it's identical in both repositories and reads these settings from `config.js`), plus any CLAUDE.md notes, and open a pull request there. Don't copy this `config.js` or this header section.
+- The API key only accepts https://rheims2.github.io/volleyball/* unless https://rheims2.github.io/volleyball-test/* is added in Google Cloud Console; only "Build rows from the NCHVC index" on the setup page needs it.
+
+The rest of this file is the live viewer's documentation.
+
 # NCHVC Results Viewer
 
 A single-page viewer for NCHVC volleyball pool play and bracket play results (now the 2026 Heartland Regionals). The tournament keeps results in Google Sheets that we have **view-only** access to; this page reads them live and shows them in a simpler, phone-friendly layout. Hosted on GitHub Pages from this repository.
@@ -9,6 +20,7 @@ A single-page viewer for NCHVC volleyball pool play and bracket play results (no
   - `divisionsSheet`: link to the user's divisions Google Sheet, the division list.
   - `sheetsApiKey`: Google Sheets API key, used only for division discovery. It's public by design, so it's restricted in Google Cloud Console to the Sheets API and the referrer `https://rheims2.github.io/volleyball/*`. Never put it in `index.html`.
   - `indexSheet`: the NCHVC bracket index the division list is built from. Now the 2026 Regionals index ("Bracket Index - Regionals - 2026 NCHVC", tab "Regionals Index", gid 760812890), which is also `index.html`'s default.
+  - `storageKey`, `siteLabel` (optional, test copy only): the test copy `rheims2/volleyball-test` (https://rheims2.github.io/volleyball-test/) sets `storageKey: "nchvc-test-viewer-v2"` so its saved settings don't mix with the live site's (both are under rheims2.github.io), and `siteLabel: "TEST"`, shown as a red tag before the event line and in the page title. Leave both unset here. `index.html` is identical in both repositories, so a change tried on the test copy moves over by copying `index.html` alone.
   - `volunteerSheet`: the club's volunteer sign-up sheet ("Eclipse - NCHVC Heartland Regionals - Volunteers"), shown as an outlined gold "Volunteer sign-up" button just right of "Updated…" (that line runs full width under the title, so the button fits beside it on phones; below 360px wide it drops under it). Opens in a new tab. Blank hides the link.
 
 ## How data is loaded
