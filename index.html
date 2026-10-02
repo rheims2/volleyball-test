@@ -1383,18 +1383,10 @@ async function volPost(body, keepalive) {
   try { res = await send(!!keepalive); } catch (e) { if (!keepalive) throw e; res = await send(false); }
   return res.json();
 }
-/* Sign-ups made on this phone, each with the random token the script keeps for it; only that
-   token can take the name off again (Remove in the form) */
-const MINE_KEY = KEY + "-volmine";
-let volMine = []; try { volMine = JSON.parse(localStorage.getItem(MINE_KEY)) || []; } catch (e) {}
-const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(volMine)); } catch (e) {} };
-const mineFor = (key, team, role) => volMine.find(m => m.key === key && m.team === team && m.role === role);
-const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
 const volStatus = {};   // key -> the thank-you / saved line shown at the top of that game's form
 const volInflight = [];   // sign-ups still being saved, put back after the sheet is re-read
 async function volSave(key, r, role, name) {
-  const token = newToken();
-  const ask = { match: r.match, team: r.team, role, name, token };
+  const ask = { match: r.match, team: r.team, role, name };
   const flight = { key, team: r.team, role, name };
   volInflight.push(flight);
   const done = ok => {
@@ -1408,8 +1400,6 @@ async function volSave(key, r, role, name) {
     const out = await volPost(ask, true);
     // "taken" by this same name means an earlier try got through
     if (out.ok || (out.error === "taken" && out.value === name)) {
-      volMine = volMine.filter(m => !(m.key === key && m.team === r.team && m.role === role));
-      volMine.push({ key, team: r.team, role, name, token }); saveMine();
       volStatus[key] = `Thank you, ${name}! You're the ${role} for ${r.team}. Saved ✓`;
       return done(true);
     }
@@ -1423,10 +1413,9 @@ async function volSave(key, r, role, name) {
     volTell(key, `Your sign-up as ${role} for ${r.team} didn't save. Try again.`, "Try again");
   }
 }
-// Takes this phone's sign-up off the sheet: shown as open straight away, put back if the script says no
+// Takes a sign-up off the sheet (after the confirm): shown as open straight away, put back if the script says no
 async function volRemove(key, r, role) {
-  const mine = mineFor(key, r.team, role); if (!mine) return;
-  const name = r.cells[role];
+  const name = r.cells[role]; if (!name) return;
   const flight = { key, team: r.team, role, name: "", remove: true };
   volInflight.push(flight);
   r.cells[role] = "";
@@ -1439,18 +1428,16 @@ async function volRemove(key, r, role) {
     render(); refreshVolForm(key);
   };
   let out;
-  try { out = await volPost({ action: "remove", match: r.match, team: r.team, role, token: mine.token }, true); } catch (e) { out = { error: "network" }; }
+  // "current" (not "name"): a script from before removals then answers "name" instead of signing the name up again
+  try { out = await volPost({ action: "remove", match: r.match, team: r.team, role, current: name }, true); } catch (e) { out = { error: "network" }; }
   if (out.ok) {
-    volMine = volMine.filter(m => m !== mine); saveMine();
     volStatus[key] = `${name} is off ${role} for ${r.team}. Removed ✓`;
     return done();
   }
   r.cells[role] = out.value || name; delete volStatus[key];
-  if (out.error === "changed" || out.error === "notyours") { volMine = volMine.filter(m => m !== mine); saveMine(); }
   done();
   volTell(key, out.error === "changed" ? `The sheet shows ${out.value} for ${role} now, so nothing was removed.`
-    : out.error === "notyours" ? `Couldn't take ${name} off ${role} from here. Ask the volunteer coordinator to remove it in the sheet.`
-    : out.error === "name" ? "The volunteer sheet's script needs updating before names can be removed."
+    : out.error === "name" || out.error === "current" ? "The volunteer sheet's script needs updating before names can be removed."
     : `Couldn't remove ${name} from ${role} for ${r.team}. Try again.`, out.error === "network" ? "Try again" : "");
 }
 // A failed save: said in the game's form when it's open (a note under it couldn't be tapped), else in a note
@@ -1478,9 +1465,9 @@ function openVolForm(key) {
   const spot = (r, role, i) => {
     const v = r.cells[role];
     if (isNA(v)) return "";
-    const saving = r.saving && r.saving[role], mine = !saving && mineFor(key, r.team, role);
+    const saving = r.saving && r.saving[role];
     return v ? `<div class="spot taken"><span>${esc(role)}</span><span class="who">${esc(v)}${saving ? " · saving…" : ""}</span>${
-      mine && mine.name === v ? `<button type="button" class="ghost volremove" data-remove="${i}|${esc(role)}">Remove</button>` : ""}</div>`
+      !saving && VOLUNTEER_SCRIPT ? `<button type="button" class="ghost volremove" data-remove="${i}|${esc(role)}" aria-label="Remove ${esc(v)} from ${esc(role)}">Remove</button>` : ""}</div>`
       : `<label class="spot"><input type="radio" name="spot" value="${i}|${esc(role)}" required> <span>${esc(role)}</span></label>`;
   };
   const open = volOpen(rows);
@@ -1501,7 +1488,7 @@ function openVolForm(key) {
   $("volCancel").addEventListener("click", () => dlg.close());
   dlg.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => {
     const i = +b.dataset.remove.split("|")[0], role = b.dataset.remove.slice(b.dataset.remove.indexOf("|") + 1), r = rows[i];
-    if (confirm(`Take ${r.cells[role]} off ${role} for ${r.team}?`)) volRemove(key, r, role);
+    if (confirm(`Remove ${r.cells[role]} from ${role} for ${r.team} (${r.match})?\n\nThis takes the name off the volunteer sheet.`)) volRemove(key, r, role);
   }));
   const f = $("volF");
   f.addEventListener("submit", async e => {

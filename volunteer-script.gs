@@ -17,10 +17,9 @@
  * they are in the sheet afterwards. A sign-up can carry the same rows as `add` (one request
  * instead of two): they're appended first when the game isn't in the sheet.
  *
- * Removing a sign-up: a sign-up can carry a random `token` from the phone that made it, kept in
- * the script's own properties (not in the sheet). { action: "remove", match, team, role, token }
- * clears the cell only when that token matches and the cell still holds the name it was saved
- * with, so only the phone that signed up can take a name off, and never someone else's.
+ * Removing a sign-up: { action: "remove", match, team, role, current } clears the cell when it still
+ * holds that name (the page asks for confirmation first). A different name in the cell (it was
+ * changed since the page loaded) is left alone and answered with "changed".
  *
  * After changing this code: Deploy > Manage deployments > edit (pencil) > Version: New version >
  * Deploy. That keeps the same web app URL.
@@ -82,9 +81,6 @@ function appendRows(sheet, data, h, head, rows) {
   return out;
 }
 
-// Where a sign-up's token is kept: one script property per spot
-function spotKey(match, team, role) { return "spot|" + norm(match) + "|" + String(team || "").trim() + "|" + String(role || "").trim().toLowerCase(); }
-
 function addRows(sheet, data, h, head, rows) {
   var out = appendRows(sheet, data, h, head, rows);
   return reply(out ? { ok: true, rows: out } : { ok: false, error: "rows" });
@@ -108,6 +104,7 @@ function doPost(e) {
     var remove = req.action === "remove";
     var name = clean(req.name, 60);
     if (!name && !remove) return reply({ ok: false, error: "name" });
+    if (remove && !req.current) return reply({ ok: false, error: "current" });
 
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
     var data = sheet.getDataRange().getDisplayValues();
@@ -136,21 +133,17 @@ function doPost(e) {
     if (r < 0 && req.add) { appendRows(sheet, data, h, head, req.add); r = find(); }
     if (r < 0) return reply({ ok: false, error: "nogame" });
     var cur = String(data[r][rc]).trim();
-    var props = PropertiesService.getScriptProperties(), key = spotKey(req.match, data[r][tc], role);
     if (remove) {
-      var saved = JSON.parse(props.getProperty(key) || "null");
-      if (!cur) { props.deleteProperty(key); return reply({ ok: true }); }   // already empty
-      if (!saved || !req.token || saved.token !== String(req.token)) return reply({ ok: false, error: "notyours", value: cur });
-      if (saved.name !== cur) return reply({ ok: false, error: "changed", value: cur });
+      if (!cur) return reply({ ok: true });   // already empty
+      if (/^n\/?a$/i.test(cur)) return reply({ ok: false, error: "notneeded", value: "N/A" });
+      // only the name the page showed (a leading ' added against formulas isn't part of it)
+      if (cur !== String(req.current || "").replace(/^'/, "").trim()) return reply({ ok: false, error: "changed", value: cur });
       sheet.getRange(r + 1, rc + 1).setValue("");
-      props.deleteProperty(key);
       return reply({ ok: true });
     }
     if (/^n\/?a$/i.test(cur)) return reply({ ok: false, error: "notneeded", value: "N/A" });
     if (cur) return reply({ ok: false, error: "taken", value: cur });
     sheet.getRange(r + 1, rc + 1).setValue(name);
-    // The cell shows the name as typed; a leading ' (added against formulas) isn't part of it
-    if (req.token) props.setProperty(key, JSON.stringify({ token: String(req.token).slice(0, 64), name: name.replace(/^'/, "") }));
     return reply({ ok: true });
   } catch (err) {
     return reply({ ok: false, error: "script" });
