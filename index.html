@@ -1482,7 +1482,7 @@ function openVolForm(key) {
     ${open && !VOLUNTEER_SCRIPT ? `<p class="sub" style="margin-top:12px">Sign-ups from this page aren't switched on yet. <a href="${esc(VOLUNTEER_SHEET)}" target="_blank" rel="noopener">Open the volunteer sheet</a>.</p>` : ""}
     <p class="err" id="volErr" hidden></p>
     <div class="actions">
-      <button type="button" class="ghost" id="volCancel">${open && VOLUNTEER_SCRIPT ? "Cancel" : "Close"}</button>
+      <button type="button" class="ghost" id="volCancel">Close</button>
       ${open && VOLUNTEER_SCRIPT ? `<button type="submit" class="refresh" id="volSubmit">Sign up</button>` : ""}
     </div></form>`;
   $("volCancel").addEventListener("click", () => dlg.close());
